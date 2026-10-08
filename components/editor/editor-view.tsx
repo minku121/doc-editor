@@ -34,6 +34,10 @@ export function EditorView({
   const { theme, setTheme } = useTheme();
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const uniqueActiveUsers = activeUsers.filter(
+    (activeUser, index, users) =>
+      users.findIndex((user) => user.id === activeUser.id) === index
+  );
 
   const handleInsertImage = (src: string) => {
     if (editor) {
@@ -74,9 +78,9 @@ export function EditorView({
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          {activeUsers.length > 0 && (
+          {uniqueActiveUsers.length > 0 && (
             <div className="flex items-center -space-x-1.5 mr-1">
-              {activeUsers.slice(0, 4).map((au, i) => (
+              {uniqueActiveUsers.slice(0, 4).map((au, i) => (
                 <div
                   key={au.id}
                   className={`w-6 h-6 rounded-full ${getAvatarColor(i)} flex items-center justify-center text-[10px] font-medium ring-2 ring-[var(--bg-surface)]`}
@@ -85,9 +89,9 @@ export function EditorView({
                   {getInitials(au.name, au.email)}
                 </div>
               ))}
-              {activeUsers.length > 4 && (
+              {uniqueActiveUsers.length > 4 && (
                 <div className="w-6 h-6 rounded-full bg-[var(--bg-muted)] text-[var(--text-secondary)] flex items-center justify-center text-[10px] font-medium ring-2 ring-[var(--bg-surface)]">
-                  +{activeUsers.length - 4}
+                  +{uniqueActiveUsers.length - 4}
                 </div>
               )}
             </div>

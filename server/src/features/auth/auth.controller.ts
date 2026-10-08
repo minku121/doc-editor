@@ -5,13 +5,15 @@ import prisma from "../../core/db";
 import { AuthRequest } from "../../core/middleware";
 
 const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
+const isProduction = process.env.NODE_ENV === "production";
 
 const setAuthCookie = (res: Response, token: string) => {
   res.cookie("token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/",
   });
 };
 
@@ -63,7 +65,12 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const logout = (req: Request, res: Response) => {
-  res.clearCookie("token");
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    path: "/",
+  });
   res.json({ success: true });
 };
 
