@@ -68,6 +68,12 @@ export const setupWebSocket = (server: http.Server) => {
     if (!rooms.has(roomId)) rooms.set(roomId, new Set());
     const clientObj: ClientObj = { socket, role, user: { id: joiningUser.id, name: joiningUser.name, email: joiningUser.email } };
     const room = rooms.get(roomId)!;
+    room.forEach((client) => {
+      if (client.user.id === userId) {
+        client.socket.close(1000, "Replaced by a newer connection");
+        room.delete(client);
+      }
+    });
     room.add(clientObj);
 
     const broadcastActiveUsers = () => {
