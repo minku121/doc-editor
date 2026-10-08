@@ -5,6 +5,31 @@ import prisma from "../core/db";
 import { rooms, documentStates, ClientObj } from "./store";
 
 const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
+const DOCUMENT_SAVE_DEBOUNCE_MS = 750;
+const documentSaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+const persistDocument = async (roomId: string, content: string) => {
+  try {
+    await prisma.document.update({
+      where: { id: roomId },
+      data: { content },
+    });
+  } catch (error) {
+    console.error(`Failed to persist document ${roomId}`, error);
+  }
+};
+
+const scheduleDocumentPersistence = (roomId: string, content: string) => {
+  const existingTimer = documentSaveTimers.get(roomId);
+  if (existingTimer) clearTimeout(existingTimer);
+
+  const timer = setTimeout(() => {
+    documentSaveTimers.delete(roomId);
+    void persistDocument(roomId, content);
+  }, DOCUMENT_SAVE_DEBOUNCE_MS);
+
+  documentSaveTimers.set(roomId, timer);
+};
 
 export const setupWebSocket = (server: http.Server) => {
   const wss = new WebSocketServer({ server });
@@ -109,13 +134,10 @@ export const setupWebSocket = (server: http.Server) => {
               }
             });
           }
-          await prisma.document.update({
-            where: { id: roomId },
-            data: { content: docContentStr }
-          }).catch(()=>null);
+          scheduleDocumentPersistence(roomId, docContentStr);
         }
       } catch {
-        // ignore invalid json
+        console.warn(`Ignoring invalid WebSocket message from user ${userId}`);
       }
     });
 
@@ -124,6 +146,13 @@ export const setupWebSocket = (server: http.Server) => {
       if (roomClients) {
         roomClients.delete(clientObj);
         if (roomClients.size === 0) {
+          const pendingTimer = documentSaveTimers.get(roomId);
+          if (pendingTimer) {
+            clearTimeout(pendingTimer);
+            documentSaveTimers.delete(roomId);
+            const latestContent = documentStates.get(roomId);
+            if (latestContent) void persistDocument(roomId, latestContent);
+          }
           rooms.delete(roomId);
           documentStates.delete(roomId);
         } else {
